@@ -21,7 +21,7 @@
 //#define USE_INTERRUPT
 //#define USE_THREAD
 
-const char *version = "v1.4";
+const char *version = "v2.0";
 
 #ifdef USE_THREAD
 pthread_t can_thread;
