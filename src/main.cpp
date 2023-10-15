@@ -14,14 +14,16 @@
 #define C_YELLOW 0xFC
 #define C_WHITE 0xFF
 
-#define BUTTON_PIN GPIO_NUM_0
+// use GPIO_NUM_0 for internal button
+#define BUTTON_PIN GPIO_NUM_27
 
 #define CAN0_INT GPIO_NUM_21
 
+// experimental - don't enable
 //#define USE_INTERRUPT
 //#define USE_THREAD
 
-const char *version = "v2.0";
+const char *version = "v2.1";
 
 #ifdef USE_THREAD
 pthread_t can_thread;
@@ -36,79 +38,84 @@ bool elmConnected = false;
 volatile bool pressed = false;
 byte mode = 0;
 
-float vCurr;    //F:  0.2V, O:
-float iCurr;    //F: 0.25A, O:-500
-float pMaxRecup;//F:  500W, O:
-float pCurr;    //F:     -, O:
-float pMaxDrive;//F:  500W, O:
-float tBatt;     //F:    1, O:-40
-float tChg;      //F:    1, O: -40
-float tInv;      //F:    1, O: -40
-float tMot;      //F:    1, O: -40
-float SOC;       //F:0.0025%, O:
-float SOH;       //F:    1, O: 
-float kph;       //F:    1, O: 
+float vCurr;     // Voltage
+float iCurr;     // Amperes
+float pCurr;     // Power (kW)
+float pMaxRecup; // Max Recup
+float pMaxDrive; // Max Drive
+float tMot;      // Motor Temp
+float tBatt;     // Battery Temp
+float tChg;      // Charger Temp
+float tInv;      // Inverter Temp
+float SOC;       // State of Charge
+float SOH;       // Battery Health
+float rpm;       // RPM of Motor
+float kph;       // Speed (based on RPM)
 
+// called by the button interrupt
 void buttonPress() { pressed = true; }
 
+// read data from the bus and extract the needed values
 void readCan() {
-  // TODO: while?
 #ifndef USE_INTERRUPT
-  while(CAN_Instance.checkReceive() == CAN_MSGAVAIL) {
-  // If CAN0_INT pin is low, read receive buffer
-  //while(!digitalRead(CAN0_INT)) {
+  while (CAN_Instance.checkReceive() == CAN_MSGAVAIL) {
 #endif
     long unsigned int rxId;
     unsigned char len = 0;
     unsigned char rxBuf[8];
+    word tempWord;
 
-    word endianHelpi;
-
-    // Read data: len = data length, buf = data byte(s)
     CAN_Instance.readMsgBuf(&rxId, &len, rxBuf);
-
-    if(rxId == 0x424){
+    switch (rxId) {
+    case 0x424:
       pMaxRecup = rxBuf[3] / -2.0f;
       pMaxDrive = rxBuf[4] / 2.0f;
-      tBatt = (rxBuf[4] + rxBuf[7] )/2 -40;
+      tBatt = (rxBuf[4] + rxBuf[7]) / 2 - 40;
       SOH = rxBuf[5];
-    }
-    if(rxId == 0x155){
-      endianHelpi = ((rxBuf[1] & 0xF) <<8) + rxBuf[2];
-      iCurr = (endianHelpi/-4.0f+500.0);
-      pCurr = (vCurr * iCurr)/1000;
-      endianHelpi = ((rxBuf[4] & 0xFF) <<8) + rxBuf[5]; 
-      SOC = endianHelpi / 400.0f;
-    }
-    if(rxId == 0x196){
+      break;
+    case 0x155:
+      tempWord = ((rxBuf[1] & 0xF) << 8) + rxBuf[2];
+      iCurr = (tempWord / -4.0f + 500.0);
+      pCurr = (vCurr * iCurr) / 1000;
+      tempWord = ((rxBuf[4] & 0xFF) << 8) + rxBuf[5];
+      SOC = tempWord / 400.0f;
+      break;
+    case 0x196:
       tMot = rxBuf[5] - 40;
-    }
-    if(rxId == 0x597){
+      break;
+    case 0x597:
       tChg = rxBuf[7] - 40;
-    }
-    if(rxId == 0x59E){
+      break;
+    case 0x59E:
       tInv = rxBuf[5] - 40;
-    }
-    if(rxId == 0x55F){
-      endianHelpi = ((rxBuf[6] & 0xF) <<8) + rxBuf[7]; 
-      vCurr = (endianHelpi/10.0f);
-      pCurr = (vCurr * iCurr)/1000;
-    }
-    if(rxId == 0x19F){
-      endianHelpi = ((rxBuf[2] & 0xFF) <<4) + ((rxBuf[3] & 0xF0) >>4);
-      kph = (((endianHelpi-2000.0f) * 10.0f) / 7250.0f) * 80.0f;
+      break;
+    case 0x55F:
+      tempWord = ((rxBuf[6] & 0xF) << 8) + rxBuf[7];
+      vCurr = (tempWord / 10.0f);
+      pCurr = (vCurr * iCurr) / 1000;
+      break;
+    case 0x19F:
+      tempWord = ((rxBuf[2] & 0xFF) << 4) + ((rxBuf[3] & 0xF0) >> 4);
+      rpm = ((tempWord - 2000.0f) * 10.0f);
+      kph = (rpm / 7250.0f) * 80.0f;
+      break;
+    default:
+      break;
     }
 #ifndef USE_INTERRUPT
   }
 #endif
 }
 
+// read can bus continually on a separate thread
+// EXPERIMENTAL
 void *readCanThread(void *threadid) {
-  while(true){
+  while (true) {
     readCan();
   }
 }
 
+// setup
 void setup() {
   Serial.begin(115200);
   if (!EEPROM.begin(512)) {
@@ -116,11 +123,12 @@ void setup() {
   }
   mode = EEPROM.readByte(0);
   // TODO: internal button for display switch
-  //pinMode(BUTTON_PIN, INPUT);
-  //attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonPress, ONLOW);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonPress, ONLOW);
 
-  // Initialize MCP2515 running at 8MHz with a baudrate of 500kb/s and the masks and filters disabled.
-  if(CAN_Instance.begin(MCP_ANY, CAN_500KBPS, MCP_8MHZ) == CAN_OK){
+  // Initialize MCP2515 running at 8MHz with a baudrate of 500kb/s and the masks
+  // and filters disabled.
+  if (CAN_Instance.begin(MCP_ANY, CAN_500KBPS, MCP_8MHZ) == CAN_OK) {
     Serial.println("MCP2515 Initialized Successfully!");
     elmConnected = true;
   } else {
@@ -148,6 +156,7 @@ void setup() {
   Serial.println("TwizyDisplay started");
 }
 
+// check if button was pressed, change mode
 void checkButton() {
   if (pressed) {
     mode++;
@@ -159,6 +168,7 @@ void checkButton() {
   }
 }
 
+// display all the info based on selected mode
 void showChargeInfo() {
   videoOut.setTextSize(2);
   videoOut.setTextWrap(false);
@@ -168,12 +178,12 @@ void showChargeInfo() {
   } else {
     videoOut.setTextColor(C_GREEN);
   }
-  videoOut.printf("Power:  %.2fkW", pCurr);
-  videoOut.setTextColor(C_WHITE);
+  videoOut.printf("Power: %02.2fkW", pCurr);
+  videoOut.setTextColor(C_YELLOW);
   videoOut.setCursor(25, 60);
-  videoOut.printf("Motor: %.1fdeg", tMot);
+  videoOut.printf("Motor: %02.1fC", tMot);
   videoOut.setCursor(25, 90);
-  videoOut.printf("Batt.: %.1fdeg", tBatt);
+  videoOut.printf("Batt.: %02.1fC", tBatt);
   switch (mode) {
   case 0:
     break;
@@ -181,25 +191,35 @@ void showChargeInfo() {
     videoOut.setTextSize(5);
     videoOut.setTextColor(C_WHITE);
     videoOut.setCursor(100, 120);
-    videoOut.printf("%.0f", kph);
+    videoOut.printf("%02.0f", kph);
     videoOut.setTextSize(2);
     break;
   case 2:
+    videoOut.setTextSize(5);
+    videoOut.setTextColor(C_WHITE);
+    videoOut.setCursor(80, 120);
+    videoOut.printf("%04.0f", rpm);
+    videoOut.setTextSize(2);
+    break;
+  case 3:
     videoOut.setCursor(25, 120);
     videoOut.setTextColor(C_RED);
-    videoOut.printf("Max  :  %.2fkW", pMaxDrive);
+    videoOut.printf("Max  :  %02.2fkW", pMaxDrive);
     videoOut.setCursor(25, 150);
     videoOut.setTextColor(C_GREEN);
-    videoOut.printf("Min  :  %.2fkW", pMaxRecup);
+    videoOut.printf("Min  :  %02.2fkW", pMaxRecup);
+    break;
+  default:
     break;
   }
   // battery
   videoOut.setTextSize(1);
   videoOut.setCursor(25, 180);
   videoOut.setTextColor(C_YELLOW);
-  videoOut.printf("Battery: %.1f%% (%.0f%%)", SOC, SOH);
+  videoOut.printf("Battery: %02.1f%% (%02.0f%%)", SOC, SOH);
 }
 
+// draw the display, including background, info and header / footer
 void doDisplay() {
   videoOut.waitForFrame();
   videoOut.fillScreen(0);
@@ -222,6 +242,7 @@ void doDisplay() {
 void loop() {
   checkButton();
 #if !defined(USE_THREAD) && !defined(USE_INTERRUPT)
+  //if(!digitalRead(CAN0_INT))
   readCan();
 #endif
   doDisplay();

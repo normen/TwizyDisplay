@@ -20,14 +20,16 @@ I created this because the [rear-view camera](https://www.amazon.de/gp/product/B
 ##### Installation
 
 - Flash the software to an [ESP32 Board](https://www.amazon.de/AZDelivery-NodeMCU-Development-Nachfolgermodell-ESP8266/dp/B071P98VTG)
-- Connect pin 25 of the board to the video input of the display (as well as GND). 
+- Connect `GPIO 25` of the ESP board to the video input of the display (as well as GND). 
 - Connect the MCP2515 board like this:
 
 ![ESP32-MCP2515](/doc/connections.jpg?raw=true "ESP32-MCP2515 Connection")
 
-- Connect the H and L outputs of the board to the pins 6 and 14 of the OBD2 plug:
+- Connect the `H` and `L` outputs of the MCP board to the pins `6` and `14` of the OBD2 plug:
 
 ![OBD2 Plug](/doc/plug.jpg?war=true "OBD2 Plug Pins")
+
+- Optionally connect a button between GPIO 27 and GND to switch the display mode (see below).
 
 ##### Power
 
@@ -35,11 +37,13 @@ If you have the sound system installed on the Twizy you should have a USB port t
 
 ### Usage
 
-Usage is pretty self-explanatory, the display just displays the given info. However you can switch the display mode by pressing the internal button of the ESP32 board.
+Usage is pretty self-explanatory, the display just displays the given info.
+
+You can attach a switch to cycle the display mode to `GPIO 27` of the ESP32 board (see above).
 
 - Mode 1: Display power usage / recuperation as well as battery and motor temperature
-- Mode 2: Additonally display the current speed in kph
-- Mode 3: Additonally display the max/min power usage
+- Mode 2: Additionally shows a large kph display
+- Mode 3: Additionally displays the max/min power usage
 
 I added the speed display as I am usually putting my phone in front of the original Twizy screen when I am using the navigation on my phone.
 
