@@ -8,3 +8,4 @@
 .compile_commands
 compile_commands.json
 .ccls
+wifi_creds.h

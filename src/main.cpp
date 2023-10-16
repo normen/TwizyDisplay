@@ -19,10 +19,17 @@
 #define CAN0_INT GPIO_NUM_21
 
 // experimental - don't enable
+//#define USE_OTA
 //#define USE_INTERRUPT
 //#define USE_THREAD
 
-const char *version = "v2.3";
+#ifdef USE_OTA
+#include <WiFi.h>
+#include <ArduinoOTA.h>
+#include "wifi_creds.h"
+#endif
+
+const char *version = "v2.4";
 
 #ifdef USE_THREAD
 TaskHandle_t taskHandle;
@@ -33,6 +40,9 @@ MCP_CAN CAN_Instance(GPIO_NUM_5);
 ESP_8_BIT_GFX videoOut(true, 8);
 
 bool elmConnected = false;
+#ifdef USE_OTA
+bool wifiConnected = true;
+#endif
 
 volatile bool pressed = false;
 byte mode = 0;
@@ -120,6 +130,26 @@ void readCanThread(void *threadid) {
 // setup
 void setup() {
   Serial.begin(115200);
+#ifdef USE_OTA
+  ArduinoOTA.setHostname("TwizyDisplay");
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  uint32_t notConnectedCounter = 0;
+  while (WiFi.status() != WL_CONNECTED) {
+      delay(100);
+      Serial.println("Wifi connecting...");
+      notConnectedCounter++;
+      if(notConnectedCounter > 50) { // Reset board if not connected after 15s
+          Serial.println("Can't connect to wifi");
+          wifiConnected = false;
+          WiFi.disconnect(true);
+      }
+  }
+  if (wifiConnected) {
+    Serial.print("Wifi connected, IP address: ");
+    Serial.println(WiFi.localIP());
+    ArduinoOTA.begin();
+  }
+#endif
   // initialize eeprom with enough space for later
   if (!EEPROM.begin(512)) {
     Serial.println("EEPROM init Error");
@@ -243,6 +273,10 @@ void doDisplay() {
 }
 
 void loop() {
+#ifdef USE_OTA
+  if (wifiConnected)
+    ArduinoOTA.handle();
+#endif
   checkButton();
 #if !defined(USE_THREAD) && !defined(USE_INTERRUPT)
   //if(!digitalRead(CAN0_INT))
