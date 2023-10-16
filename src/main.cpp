@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <pthread.h>
 #include <mcp_can.h>
 #include <EEPROM.h>
 #include <ESP_8_BIT_GFX.h>
@@ -26,7 +25,7 @@
 const char *version = "v2.1";
 
 #ifdef USE_THREAD
-pthread_t can_thread;
+TaskHandle_t taskHandle;
 #endif
 
 MCP_CAN CAN_Instance(GPIO_NUM_5);
@@ -142,13 +141,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(CAN0_INT), readCan, ONLOW);
 #endif
 #ifdef USE_THREAD
-  Serial.println("Starting CAN thread..");
-  int returnValue = pthread_create(&can_thread, NULL, readCanThread, (void *)0);
-  if (returnValue) {
-    Serial.println("Can't create thread");
-  } else {
-    Serial.println("CAN thread started.");
-  }
+  xTaskCreatePinnedToCore(readCanThread,"CanThread",1000,NULL,1,&taskHandle,0);
 #endif
   // Initial setup of graphics library
   Serial.println("Starting video out..");
@@ -160,7 +153,7 @@ void setup() {
 void checkButton() {
   if (pressed) {
     mode++;
-    if (mode > 2)
+    if (mode > 3)
       mode = 0;
     EEPROM.writeByte(0, mode);
     EEPROM.commit();
