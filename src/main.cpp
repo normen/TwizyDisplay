@@ -22,7 +22,7 @@
 //#define USE_INTERRUPT
 //#define USE_THREAD
 
-const char *version = "v2.1";
+const char *version = "v2.2";
 
 #ifdef USE_THREAD
 TaskHandle_t taskHandle;
@@ -171,12 +171,12 @@ void showChargeInfo() {
   } else {
     videoOut.setTextColor(C_GREEN);
   }
-  videoOut.printf("Power: %02.2fkW", pCurr);
+  videoOut.printf("Power: %6.2fkW", pCurr);
   videoOut.setTextColor(C_YELLOW);
   videoOut.setCursor(25, 60);
-  videoOut.printf("Motor: %02.1fC", tMot);
+  videoOut.printf("Motor: %6.1fC", tMot);
   videoOut.setCursor(25, 90);
-  videoOut.printf("Batt.: %02.1fC", tBatt);
+  videoOut.printf("Batt.: %6.1fC", tBatt);
   switch (mode) {
   case 0:
     break;
@@ -197,10 +197,10 @@ void showChargeInfo() {
   case 3:
     videoOut.setCursor(25, 120);
     videoOut.setTextColor(C_RED);
-    videoOut.printf("Max  :  %02.2fkW", pMaxDrive);
+    videoOut.printf("Max  :  %6.2fkW", pMaxDrive);
     videoOut.setCursor(25, 150);
     videoOut.setTextColor(C_GREEN);
-    videoOut.printf("Min  :  %02.2fkW", pMaxRecup);
+    videoOut.printf("Min  :  %6.2fkW", pMaxRecup);
     break;
   default:
     break;
@@ -209,7 +209,7 @@ void showChargeInfo() {
   videoOut.setTextSize(1);
   videoOut.setCursor(25, 180);
   videoOut.setTextColor(C_YELLOW);
-  videoOut.printf("Battery: %02.1f%% (%02.0f%%)", SOC, SOH);
+  videoOut.printf("Battery: %04.1f%% (%02.0f%%)", SOC, SOH);
 }
 
 // draw the display, including background, info and header / footer
