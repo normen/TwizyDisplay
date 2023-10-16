@@ -274,8 +274,14 @@ void doDisplay() {
 
 void loop() {
 #ifdef USE_OTA
-  if (wifiConnected)
-    ArduinoOTA.handle();
+  if (wifiConnected) {
+    if (WiFi.status() != WL_CONNECTED) {
+      wifiConnected = false;
+      WiFi.disconnect(true);
+    } else {
+      ArduinoOTA.handle();
+    }
+  }
 #endif
   checkButton();
 #if !defined(USE_THREAD) && !defined(USE_INTERRUPT)
