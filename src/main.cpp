@@ -22,7 +22,7 @@
 //#define USE_INTERRUPT
 //#define USE_THREAD
 
-const char *version = "v2.2";
+const char *version = "v2.3";
 
 #ifdef USE_THREAD
 TaskHandle_t taskHandle;
@@ -120,14 +120,14 @@ void readCanThread(void *threadid) {
 // setup
 void setup() {
   Serial.begin(115200);
+  // initialize eeprom with enough space for later
   if (!EEPROM.begin(512)) {
     Serial.println("EEPROM init Error");
   }
   mode = EEPROM.readByte(0);
-  // TODO: internal button for display switch
+  // internal button for display switch
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonPress, ONLOW);
-
   // Initialize MCP2515 running at 8MHz with a baudrate of 500kb/s and the masks
   // and filters disabled.
   if (CAN_Instance.begin(MCP_ANY, CAN_500KBPS, MCP_8MHZ) == CAN_OK) {
@@ -138,7 +138,7 @@ void setup() {
   }
   // Set operation mode to normal so the MCP2515 sends acks to received data.
   CAN_Instance.setMode(MCP_NORMAL);
-
+  // Set pin mode for CAN INT line
   pinMode(CAN0_INT, INPUT);
 #ifdef USE_INTERRUPT
   attachInterrupt(digitalPinToInterrupt(CAN0_INT), readCan, ONLOW);
@@ -156,7 +156,7 @@ void setup() {
 void checkButton() {
   if (pressed) {
     mode++;
-    if (mode > 3)
+    if (mode > 4)
       mode = 0;
     EEPROM.writeByte(0, mode);
     EEPROM.commit();
@@ -193,17 +193,24 @@ void showChargeInfo() {
   case 2:
     videoOut.setTextSize(5);
     videoOut.setTextColor(C_WHITE);
-    videoOut.setCursor(80, 120);
+    videoOut.setCursor(70, 120);
     videoOut.printf("%04.0f", rpm);
     videoOut.setTextSize(2);
     break;
   case 3:
     videoOut.setCursor(25, 120);
     videoOut.setTextColor(C_RED);
-    videoOut.printf("Max  :  %6.2fkW", pMaxDrive);
+    videoOut.printf("Max  : %6.2fkW", pMaxDrive);
     videoOut.setCursor(25, 150);
     videoOut.setTextColor(C_GREEN);
-    videoOut.printf("Min  :  %6.2fkW", pMaxRecup);
+    videoOut.printf("Min  : %6.2fkW", pMaxRecup);
+    break;
+  case 4:
+    videoOut.setCursor(25, 120);
+    videoOut.setTextColor(C_YELLOW);
+    videoOut.printf("Inv. : %6.1fC", tInv);
+    videoOut.setCursor(25, 150);
+    videoOut.printf("Charg: %6.1fC", tChg);
     break;
   default:
     break;
