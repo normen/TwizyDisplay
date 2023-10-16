@@ -43,7 +43,8 @@ You can attach a switch to cycle the display mode to `GPIO 27` of the ESP32 boar
 
 - Mode 1: Display power usage / recuperation as well as battery and motor temperature
 - Mode 2: Additionally shows a large kph display
-- Mode 3: Additionally displays the max/min power usage
+- Mode 3: Additionally shows a large rpm display
+- Mode 4: Additionally displays the max/min power usage
 
 I added the speed display as I am usually putting my phone in front of the original Twizy screen when I am using the navigation on my phone.
 
