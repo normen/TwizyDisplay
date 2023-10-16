@@ -106,13 +106,16 @@ void readCan() {
 #endif
 }
 
-// read can bus continually on a separate thread
-// EXPERIMENTAL
-void *readCanThread(void *threadid) {
+#ifdef USE_THREAD
+// read can bus continually on core 0
+void readCanThread(void *threadid) {
   while (true) {
     readCan();
+    // give the system a chance to use core 0
+    vTaskDelay(1);
   }
 }
+#endif
 
 // setup
 void setup() {
