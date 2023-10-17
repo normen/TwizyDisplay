@@ -28,10 +28,10 @@
 #define BUTTON_PIN GPIO_NUM_27
 
 #define CAN0_INT GPIO_NUM_21
+// Actual max would be 80, Twizys own display uses 84
+#define MAX_SPEED 84.0f
 
-#define MAX_SPEED 80.0f
-
-const char *version = "v2.4.0";
+const char *version = "v2.4.1";
 
 #ifdef USE_THREAD
 TaskHandle_t taskHandle;
