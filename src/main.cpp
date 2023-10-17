@@ -4,6 +4,17 @@
 #include <ESP_8_BIT_GFX.h>
 #include "images.h"
 
+// experimental - don't enable
+//#define USE_INTERRUPT
+//#define USE_THREAD
+
+//#define USE_OTA
+#ifdef USE_OTA
+#include <WiFi.h>
+#include <ArduinoOTA.h>
+#include "wifi_creds.h"
+#endif
+
 #define C_BLACK 0x00
 #define C_BLUE 0x03
 #define C_GREEN 0x1C
@@ -18,18 +29,9 @@
 
 #define CAN0_INT GPIO_NUM_21
 
-// experimental - don't enable
-//#define USE_OTA
-//#define USE_INTERRUPT
-//#define USE_THREAD
+#define MAX_SPEED 80.0f
 
-#ifdef USE_OTA
-#include <WiFi.h>
-#include <ArduinoOTA.h>
-#include "wifi_creds.h"
-#endif
-
-const char *version = "v2.4";
+const char *version = "v2.4.0";
 
 #ifdef USE_THREAD
 TaskHandle_t taskHandle;
@@ -106,7 +108,7 @@ void readCan() {
     case 0x19F:
       tempWord = ((rxBuf[2] & 0xFF) << 4) + ((rxBuf[3] & 0xF0) >> 4);
       rpm = ((tempWord - 2000.0f) * 10.0f);
-      kph = (rpm / 7250.0f) * 80.0f;
+      kph = (rpm / 7250.0f) * MAX_SPEED;
       break;
     default:
       break;
