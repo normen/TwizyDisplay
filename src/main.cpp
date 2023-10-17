@@ -138,7 +138,7 @@ void setup() {
   ArduinoOTA.setHostname("TwizyDisplay");
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   uint32_t notConnectedCounter = 0;
-  while (WiFi.status() != WL_CONNECTED) {
+  while ((WiFi.status() != WL_CONNECTED) && wifiConnected) {
       delay(100);
       Serial.println("Wifi connecting...");
       notConnectedCounter++;
