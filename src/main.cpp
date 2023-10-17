@@ -139,14 +139,14 @@ void setup() {
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   uint32_t notConnectedCounter = 0;
   while ((WiFi.status() != WL_CONNECTED) && wifiConnected) {
-      delay(100);
-      Serial.println("Wifi connecting...");
-      notConnectedCounter++;
-      if(notConnectedCounter > 50) { // Reset board if not connected after 15s
-          Serial.println("Can't connect to wifi");
-          wifiConnected = false;
-          WiFi.disconnect(true);
-      }
+    delay(100);
+    Serial.println("Wifi connecting...");
+    notConnectedCounter++;
+    if (notConnectedCounter > 50) { // Reset board if not connected after 15s
+      Serial.println("Can't connect to wifi");
+      wifiConnected = false;
+      WiFi.disconnect(true);
+    }
   }
   if (wifiConnected) {
     Serial.print("Wifi connected, IP address: ");
@@ -178,7 +178,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(CAN0_INT), readCan, ONLOW);
 #endif
 #ifdef USE_THREAD
-  xTaskCreatePinnedToCore(readCanThread,"CanThread",1000,NULL,1,&taskHandle,0);
+  xTaskCreatePinnedToCore(readCanThread, "CanThread", 1000, NULL, 1, &taskHandle, 0);
 #endif
   // Initial setup of graphics library
   Serial.println("Starting video out..");
