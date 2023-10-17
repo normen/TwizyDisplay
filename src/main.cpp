@@ -52,6 +52,7 @@ byte mode = 0;
 float vCurr;     // Voltage
 float iCurr;     // Amperes
 float pCurr;     // Power (kW)
+float pConv;     // DC converter power (W)
 float pMaxRecup; // Max Recup
 float pMaxDrive; // Max Drive
 float tMot;      // Motor Temp
@@ -96,6 +97,7 @@ void readCan() {
       break;
     case 0x597:
       tChg = rxBuf[7] - 40;
+      pConv = (rxBuf[2] / 5.0f) * 12.0f;
       break;
     case 0x59E:
       tInv = rxBuf[5] - 40;
@@ -188,7 +190,7 @@ void setup() {
 void checkButton() {
   if (pressed) {
     mode++;
-    if (mode > 4)
+    if (mode > 5)
       mode = 0;
     EEPROM.writeByte(0, mode);
     EEPROM.commit();
@@ -243,6 +245,11 @@ void showChargeInfo() {
     videoOut.printf("Inv. : %6.1fC", tInv);
     videoOut.setCursor(25, 150);
     videoOut.printf("Charg: %6.1fC", tChg);
+    break;
+  case 5:
+    videoOut.setCursor(25, 120);
+    videoOut.setTextColor(C_YELLOW);
+    videoOut.printf("DC/DC: %6.1fW", pConv);
     break;
   default:
     break;
