@@ -11,6 +11,8 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   rm changes.md
   exit 1
 fi
+make clean
+make
 cp .pio/build/nodemcu-32s/firmware.bin .pio/build/nodemcu-32s/firmware-$VERSION.bin
 gh release create $VERSION .pio/build/nodemcu-32s/firmware-$VERSION.bin -F changes.md -t $VERSION
 rm changes.md
