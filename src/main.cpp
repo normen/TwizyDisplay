@@ -77,8 +77,8 @@ void readCan() {
     CAN_Instance.readMsgBuf(&rxId, &len, rxBuf);
     switch (rxId) {
     case 0x424:
-      pMaxRecup = rxBuf[3] / -2.0f;
-      pMaxDrive = rxBuf[4] / 2.0f;
+      pMaxRecup = rxBuf[2] / -2.0f;
+      pMaxDrive = rxBuf[3] / 2.0f;
       tBatt = (rxBuf[4] + rxBuf[7]) / 2 - 40;
       SOH = rxBuf[5];
       break;
