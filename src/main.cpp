@@ -2,6 +2,7 @@
 #include <mcp_can.h>
 #include <EEPROM.h>
 #include <ESP_8_BIT_GFX.h>
+#include <esp32notifications.h>
 #include "images.h"
 
 // OTA needs a wifi_creds.h with #defines for WIFI_PASS and WIFI_SSID
@@ -41,6 +42,12 @@ TaskHandle_t taskHandle;
 MCP_CAN CAN_Instance(GPIO_NUM_5);
 
 ESP_8_BIT_GFX videoOut(true, 8);
+
+#ifdef USE_NOTIFICATIONS
+BLENotifications notifications;
+char messageTitle[40];
+char messageBody[3 * 40];
+#endif
 
 bool elmConnected = false;
 #ifdef USE_OTA
@@ -135,6 +142,16 @@ void showChargeInfo() {
   videoOut.printf("Batt.: %6.1fC", tBatt);
   switch (mode) {
   case 0:
+#ifdef USE_NOTIFICATIONS
+    if(strcmp(messageBody, "") != 0){
+      videoOut.setCursor(10, 120);
+      videoOut.setTextWrap(true);
+      videoOut.setTextSize(1);
+      videoOut.print(messageBody);
+      videoOut.setTextWrap(false);
+      videoOut.setTextSize(2);
+    }
+#endif
     break;
   case 1:
     videoOut.setTextSize(5);
@@ -198,6 +215,14 @@ void doDisplay() {
     videoOut.setTextSize(1);
     videoOut.print("CAN Bus Error");
   }
+#ifdef USE_NOTIFICATIONS
+  if(strcmp(messageTitle, "") != 0){
+    videoOut.setTextColor(C_WHITE);
+    videoOut.setCursor(10, 10);
+    videoOut.setTextSize(1);
+    videoOut.print(messageTitle);
+  }
+#endif
 }
 
 #ifdef USE_THREAD
@@ -222,6 +247,44 @@ void checkButton() {
     pressed = false;
   }
 }
+
+#ifdef USE_NOTIFICATIONS
+void onBLEStateChanged(BLENotifications::State state) {
+  Serial.println("BLE State change");
+  switch (state) {
+  case BLENotifications::StateConnected:
+    Serial.println("StateConnected - connected to a phone or tablet");
+    break;
+
+  case BLENotifications::StateDisconnected:
+    Serial.println("StateDisconnected - disconnected from a phone or tablet");
+    notifications.startAdvertising();
+    break;
+  }
+}
+
+void onNotificationArrived(const ArduinoNotification * notification, const Notification * rawData) {
+  Serial.println("Notification arrived");
+  if (notification->title.length() < 40)
+    strcpy(messageTitle, notification->title.c_str());
+  else
+    strcpy(messageTitle, notification->title.substring(0, 40).c_str());
+  if (notification->message.length() < 3 * 40)
+    strcpy(messageBody, notification->message.c_str());
+  else
+    strcpy(messageTitle, notification->title.substring(0, 3 * 40).c_str());
+  Serial.println(notification->title);
+  Serial.println(notification->message);
+}
+
+void onNotificationRemoved(const ArduinoNotification * notification, const Notification * rawNotificationData) {
+  Serial.println("Notification removed");
+  if (notification->title.equals(messageTitle)) {
+    strcpy(messageTitle, "");
+    strcpy(messageBody, "");
+  }
+}
+#endif
 
 // setup
 void setup() {
@@ -268,6 +331,13 @@ void setup() {
   pinMode(CAN0_INT, INPUT);
 #ifdef USE_THREAD
   xTaskCreatePinnedToCore(readCanThread, "CanThread", 1000, NULL, 1, &taskHandle, 0);
+#endif
+#ifdef USE_NOTIFICATIONS
+  // Notifications setup
+  notifications.begin("TwizyDisplay");
+  notifications.setConnectionStateChangedCallback(onBLEStateChanged);
+  notifications.setNotificationCallback(onNotificationArrived);
+  notifications.setRemovedCallback(onNotificationRemoved);
 #endif
   // Initial setup of graphics library
   Serial.println("Starting video out..");
