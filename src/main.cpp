@@ -4,10 +4,7 @@
 #include <ESP_8_BIT_GFX.h>
 #include "images.h"
 
-// experimental - don't enable
-//#define USE_INTERRUPT
-//#define USE_THREAD
-
+// OTA needs a wifi_creds.h with #defines for WIFI_PASS and WIFI_SSID
 //#define USE_OTA
 #ifdef USE_OTA
 #include <WiFi.h>
@@ -15,6 +12,10 @@
 #include "wifi_creds.h"
 #endif
 
+// experimental
+//#define USE_THREAD
+
+// Colors for the display
 #define C_BLACK 0x00
 #define C_BLUE 0x03
 #define C_GREEN 0x1C
@@ -69,9 +70,7 @@ void buttonPress() { pressed = true; }
 
 // read data from the bus and extract the needed values
 void readCan() {
-#ifndef USE_INTERRUPT
   while (CAN_Instance.checkReceive() == CAN_MSGAVAIL) {
-#endif
     long unsigned int rxId;
     unsigned char len = 0;
     unsigned char rxBuf[8];
@@ -115,86 +114,6 @@ void readCan() {
     default:
       break;
     }
-#ifndef USE_INTERRUPT
-  }
-#endif
-}
-
-#ifdef USE_THREAD
-// read can bus continually on core 0
-void readCanThread(void *threadid) {
-  while (true) {
-    readCan();
-    // give the system a chance to use core 0
-    vTaskDelay(1);
-  }
-}
-#endif
-
-// setup
-void setup() {
-  Serial.begin(115200);
-#ifdef USE_OTA
-  ArduinoOTA.setHostname("TwizyDisplay");
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  uint32_t notConnectedCounter = 0;
-  while ((WiFi.status() != WL_CONNECTED) && wifiConnected) {
-    delay(100);
-    Serial.println("Wifi connecting...");
-    notConnectedCounter++;
-    if (notConnectedCounter > 50) { // Reset board if not connected after 15s
-      Serial.println("Can't connect to wifi");
-      wifiConnected = false;
-      WiFi.disconnect(true);
-    }
-  }
-  if (wifiConnected) {
-    Serial.print("Wifi connected, IP address: ");
-    Serial.println(WiFi.localIP());
-    ArduinoOTA.begin();
-  }
-#endif
-  // initialize eeprom with enough space for later
-  if (!EEPROM.begin(512)) {
-    Serial.println("EEPROM init Error");
-  }
-  mode = EEPROM.readByte(0);
-  // internal button for display switch
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonPress, ONLOW);
-  // Initialize MCP2515 running at 8MHz with a baudrate of 500kb/s and the masks
-  // and filters disabled.
-  if (CAN_Instance.begin(MCP_ANY, CAN_500KBPS, MCP_8MHZ) == CAN_OK) {
-    Serial.println("MCP2515 Initialized Successfully!");
-    elmConnected = true;
-  } else {
-    Serial.println("Error Initializing MCP2515...");
-  }
-  // Set operation mode to normal so the MCP2515 sends acks to received data.
-  CAN_Instance.setMode(MCP_NORMAL);
-  // Set pin mode for CAN INT line
-  pinMode(CAN0_INT, INPUT);
-#ifdef USE_INTERRUPT
-  attachInterrupt(digitalPinToInterrupt(CAN0_INT), readCan, ONLOW);
-#endif
-#ifdef USE_THREAD
-  xTaskCreatePinnedToCore(readCanThread, "CanThread", 1000, NULL, 1, &taskHandle, 0);
-#endif
-  // Initial setup of graphics library
-  Serial.println("Starting video out..");
-  videoOut.begin();
-  Serial.println("TwizyDisplay started");
-}
-
-// check if button was pressed, change mode
-void checkButton() {
-  if (pressed) {
-    mode++;
-    if (mode > 5)
-      mode = 0;
-    EEPROM.writeByte(0, mode);
-    EEPROM.commit();
-    pressed = false;
   }
 }
 
@@ -279,6 +198,81 @@ void doDisplay() {
     videoOut.setTextSize(1);
     videoOut.print("CAN Bus Error");
   }
+}
+
+#ifdef USE_THREAD
+// read can bus continually on core 0
+void readCanThread(void *threadid) {
+  while (true) {
+    readCan();
+    // give the system a chance to use core 0
+    vTaskDelay(1);
+  }
+}
+#endif
+
+// check if button was pressed, change mode
+void checkButton() {
+  if (pressed) {
+    mode++;
+    if (mode > 5)
+      mode = 0;
+    EEPROM.writeByte(0, mode);
+    EEPROM.commit();
+    pressed = false;
+  }
+}
+
+// setup
+void setup() {
+  Serial.begin(115200);
+#ifdef USE_OTA
+  ArduinoOTA.setHostname("TwizyDisplay");
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  uint32_t notConnectedCounter = 0;
+  while ((WiFi.status() != WL_CONNECTED) && wifiConnected) {
+    delay(100);
+    Serial.println("Wifi connecting...");
+    notConnectedCounter++;
+    if (notConnectedCounter > 50) { // Reset board if not connected after 15s
+      Serial.println("Can't connect to wifi");
+      wifiConnected = false;
+      WiFi.disconnect(true);
+    }
+  }
+  if (wifiConnected) {
+    Serial.print("Wifi connected, IP address: ");
+    Serial.println(WiFi.localIP());
+    ArduinoOTA.begin();
+  }
+#endif
+  // initialize eeprom with enough space for later
+  if (!EEPROM.begin(512)) {
+    Serial.println("EEPROM init Error");
+  }
+  mode = EEPROM.readByte(0);
+  // internal button for display switch
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonPress, ONLOW);
+  // Initialize MCP2515 running at 8MHz with a baudrate of 500kb/s and the masks
+  // and filters disabled.
+  if (CAN_Instance.begin(MCP_ANY, CAN_500KBPS, MCP_8MHZ) == CAN_OK) {
+    Serial.println("MCP2515 Initialized Successfully!");
+    elmConnected = true;
+  } else {
+    Serial.println("Error Initializing MCP2515...");
+  }
+  // Set operation mode to normal so the MCP2515 sends acks to received data.
+  CAN_Instance.setMode(MCP_NORMAL);
+  // Set pin mode for CAN INT line
+  pinMode(CAN0_INT, INPUT);
+#ifdef USE_THREAD
+  xTaskCreatePinnedToCore(readCanThread, "CanThread", 1000, NULL, 1, &taskHandle, 0);
+#endif
+  // Initial setup of graphics library
+  Serial.println("Starting video out..");
+  videoOut.begin();
+  Serial.println("TwizyDisplay started");
 }
 
 void loop() {
