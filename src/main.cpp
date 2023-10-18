@@ -357,7 +357,7 @@ void loop() {
   }
 #endif
   checkButton();
-#if !defined(USE_THREAD) && !defined(USE_INTERRUPT)
+#ifndef USE_THREAD
   //if(!digitalRead(CAN0_INT))
   readCan();
 #endif
