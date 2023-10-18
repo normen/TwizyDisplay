@@ -12,8 +12,8 @@
 #include "wifi_creds.h"
 #endif
 
-// experimental
-//#define USE_THREAD
+// Run CAN bus reading on core 0
+#define USE_THREAD
 
 // Colors for the display
 #define C_BLACK 0x00
@@ -32,7 +32,7 @@
 // Actual max would be 80, Twizys own display uses 84
 #define MAX_SPEED 84.0f
 
-const char *version = "v2.4.1";
+const char *version = "v2.5.0";
 
 #ifdef USE_THREAD
 TaskHandle_t taskHandle;
@@ -50,20 +50,20 @@ bool wifiConnected = true;
 volatile bool pressed = false;
 byte mode = 0;
 
-float vCurr;     // Voltage
-float iCurr;     // Amperes
-float pCurr;     // Power (kW)
-float pConv;     // DC converter power (W)
-float pMaxRecup; // Max Recup
-float pMaxDrive; // Max Drive
-float tMot;      // Motor Temp
-float tBatt;     // Battery Temp
-float tChg;      // Charger Temp
-float tInv;      // Inverter Temp
-float SOC;       // State of Charge
-float SOH;       // Battery Health
-float rpm;       // RPM of Motor
-float kph;       // Speed (based on RPM)
+volatile float vCurr;     // Voltage
+volatile float iCurr;     // Amperes
+volatile float pCurr;     // Power (kW)
+volatile float pConv;     // DC converter power (W)
+volatile float pMaxRecup; // Max Recup
+volatile float pMaxDrive; // Max Drive
+volatile float tMot;      // Motor Temp
+volatile float tBatt;     // Battery Temp
+volatile float tChg;      // Charger Temp
+volatile float tInv;      // Inverter Temp
+volatile float SOC;       // State of Charge
+volatile float SOH;       // Battery Health
+volatile float rpm;       // RPM of Motor
+volatile float kph;       // Speed (based on RPM)
 
 // called by the button interrupt
 void buttonPress() { pressed = true; }
